@@ -12,8 +12,7 @@
     }
 
     let currentAngle = 0;
-    let originalBodyStyle = null;
-    let originalHtmlStyle = null;
+    let originalStyles = null;
 
     function normalizeAngle(angle) {
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
@@ -81,27 +80,32 @@
     }
 
     function captureOriginalStyles() {
-        if (originalBodyStyle === null) {
-            originalBodyStyle = document.body.getAttribute("style");
-        }
-
-        if (originalHtmlStyle === null) {
-            originalHtmlStyle = document.documentElement.getAttribute("style");
+        if (originalStyles === null) {
+            originalStyles = {
+                body: document.body.getAttribute("style"),
+                html: document.documentElement.getAttribute("style")
+            };
         }
     }
 
     function restoreOriginalStyles() {
-        if (originalBodyStyle === null) {
-            document.body.removeAttribute("style");
-        } else {
-            document.body.setAttribute("style", originalBodyStyle);
+        if (originalStyles === null) {
+            return;
         }
 
-        if (originalHtmlStyle === null) {
+        if (originalStyles.body === null) {
+            document.body.removeAttribute("style");
+        } else {
+            document.body.setAttribute("style", originalStyles.body);
+        }
+
+        if (originalStyles.html === null) {
             document.documentElement.removeAttribute("style");
         } else {
-            document.documentElement.setAttribute("style", originalHtmlStyle);
+            document.documentElement.setAttribute("style", originalStyles.html);
         }
+
+        originalStyles = null;
     }
 
     function ensureWrapper() {
