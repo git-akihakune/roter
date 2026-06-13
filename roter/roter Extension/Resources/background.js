@@ -25,6 +25,16 @@ function clearStoredState(tabId) {
     tabStates.delete(tabId);
 }
 
+function getResponseAngle(contentState) {
+    if (typeof contentState?.angle !== "number") {
+        return null;
+    }
+
+    const angle = normalizeAngle(contentState.angle);
+
+    return angle === contentState.angle ? angle : null;
+}
+
 async function getActiveTab() {
     const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     return tabs[0] ?? null;
@@ -76,19 +86,24 @@ async function getTabStatus(tab) {
     const origin = getOriginKey(tab.url);
     const angle = storedState.origin === origin ? storedState.angle : 0;
 
-    setStoredState(tab.id, { angle, origin, url: tab.url });
-
     try {
         await ensureContentController(tab.id);
         const contentState = await sendToTab(tab.id, {
             type: "roter:applyAngle",
             angle
         });
+        const responseAngle = getResponseAngle(contentState);
+
+        if (responseAngle === null) {
+            return { actionable: false, permitted: true, angle: 0 };
+        }
+
+        setStoredState(tab.id, { angle: responseAngle, origin, url: tab.url });
 
         return {
             actionable: true,
             permitted: true,
-            angle: normalizeAngle(contentState?.angle)
+            angle: responseAngle
         };
     } catch {
         return { actionable: false, permitted: true, angle: 0 };
@@ -117,16 +132,24 @@ async function rotateActiveTab() {
     const previousAngle = storedState.origin === origin ? storedState.angle : 0;
     const nextAngle = angleAfterRotate(previousAngle);
 
-    await ensureContentController(tab.id);
-    const contentState = await sendToTab(tab.id, {
-        type: "roter:applyAngle",
-        angle: nextAngle
-    });
-    const angle = normalizeAngle(contentState?.angle ?? nextAngle);
+    try {
+        await ensureContentController(tab.id);
+        const contentState = await sendToTab(tab.id, {
+            type: "roter:applyAngle",
+            angle: nextAngle
+        });
+        const angle = getResponseAngle(contentState);
 
-    setStoredState(tab.id, { angle, origin, url: tab.url });
+        if (angle === null) {
+            return { actionable: false, permitted: true, angle: 0 };
+        }
 
-    return { actionable: true, permitted: true, angle };
+        setStoredState(tab.id, { angle, origin, url: tab.url });
+
+        return { actionable: true, permitted: true, angle };
+    } catch {
+        return { actionable: false, permitted: true, angle: 0 };
+    }
 }
 
 async function resetActiveTab() {
@@ -148,13 +171,21 @@ async function resetActiveTab() {
 
     const origin = getOriginKey(tab.url);
 
-    await ensureContentController(tab.id);
-    const contentState = await sendToTab(tab.id, { type: "roter:reset" });
-    const angle = normalizeAngle(contentState?.angle);
+    try {
+        await ensureContentController(tab.id);
+        const contentState = await sendToTab(tab.id, { type: "roter:reset" });
+        const angle = getResponseAngle(contentState);
 
-    setStoredState(tab.id, { angle, origin, url: tab.url });
+        if (angle === null) {
+            return { actionable: false, permitted: true, angle: 0 };
+        }
 
-    return { actionable: true, permitted: true, angle };
+        setStoredState(tab.id, { angle, origin, url: tab.url });
+
+        return { actionable: true, permitted: true, angle };
+    } catch {
+        return { actionable: false, permitted: true, angle: 0 };
+    }
 }
 
 browser.runtime.onMessage.addListener((request) => {
@@ -178,16 +209,11 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         return;
     }
 
-    const storedState = getStoredState(tabId);
-
-    if (!storedState.url) {
-        setStoredState(tabId, {
-            angle: storedState.angle,
-            origin: getOriginKey(changeInfo.url),
-            url: changeInfo.url
-        });
+    if (!tabStates.has(tabId)) {
         return;
     }
+
+    const storedState = getStoredState(tabId);
 
     if (!isSameOrigin(storedState.url, changeInfo.url)) {
         clearStoredState(tabId);
