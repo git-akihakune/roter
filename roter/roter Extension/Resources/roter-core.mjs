@@ -1,0 +1,46 @@
+export const SUPPORTED_ANGLES = [0, 90, 180, 270];
+
+export function normalizeAngle(angle) {
+    return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
+}
+
+export function angleAfterRotate(angle) {
+    const currentAngle = normalizeAngle(angle);
+    const currentIndex = SUPPORTED_ANGLES.indexOf(currentAngle);
+    return SUPPORTED_ANGLES[(currentIndex + 1) % SUPPORTED_ANGLES.length];
+}
+
+export function getOriginKey(urlString) {
+    try {
+        const url = new URL(urlString);
+
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            return null;
+        }
+
+        return url.origin;
+    } catch {
+        return null;
+    }
+}
+
+export function getOriginPermissionPattern(urlString) {
+    const origin = getOriginKey(urlString);
+
+    if (!origin) {
+        return null;
+    }
+
+    return `${origin}/*`;
+}
+
+export function isSameOrigin(previousUrl, nextUrl) {
+    const previousOrigin = getOriginKey(previousUrl);
+    const nextOrigin = getOriginKey(nextUrl);
+
+    return Boolean(previousOrigin && nextOrigin && previousOrigin === nextOrigin);
+}
+
+export function canAttemptRotation(urlString) {
+    return Boolean(getOriginKey(urlString));
+}
