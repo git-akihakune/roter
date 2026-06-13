@@ -31,9 +31,81 @@
         return document.querySelector(ownedSelector(id, role));
     }
 
+    function getOwnedElements(id, role) {
+        return Array.from(document.querySelectorAll(ownedSelector(id, role)));
+    }
+
+    function getOwnedWrapperPair() {
+        const viewports = getOwnedElements(VIEWPORT_ID, VIEWPORT_ROLE);
+        const surfaces = getOwnedElements(SURFACE_ID, SURFACE_ROLE);
+
+        for (const viewport of viewports) {
+            const surface = surfaces.find((candidate) => {
+                return candidate.parentNode === viewport;
+            });
+
+            if (surface) {
+                return { surface, viewport };
+            }
+        }
+
+        return null;
+    }
+
+    function isOwnedNode(node) {
+        return node.nodeType === Node.ELEMENT_NODE && node.getAttribute(OWNED_ATTRIBUTE) === "true";
+    }
+
     function markOwned(element, role) {
         element.setAttribute(OWNED_ATTRIBUTE, "true");
         element.setAttribute(ROLE_ATTRIBUTE, role);
+    }
+
+    function removeOwnedWrapperNodes(keptPair = null) {
+        const keptSurface = keptPair?.surface ?? null;
+        const keptViewport = keptPair?.viewport ?? null;
+        const surfaces = getOwnedElements(SURFACE_ID, SURFACE_ROLE);
+        const viewports = getOwnedElements(VIEWPORT_ID, VIEWPORT_ROLE);
+
+        for (const surface of surfaces) {
+            if (surface === keptSurface) {
+                continue;
+            }
+
+            const anchor = surface.closest(ownedSelector(VIEWPORT_ID, VIEWPORT_ROLE)) || surface;
+
+            while (surface.firstChild) {
+                if (anchor.parentNode) {
+                    anchor.parentNode.insertBefore(surface.firstChild, anchor);
+                } else {
+                    document.body.append(surface.firstChild);
+                }
+            }
+
+            surface.remove();
+        }
+
+        for (const viewport of viewports) {
+            if (viewport === keptViewport) {
+                continue;
+            }
+
+            while (viewport.firstChild) {
+                if (viewport.parentNode) {
+                    viewport.parentNode.insertBefore(viewport.firstChild, viewport);
+                } else {
+                    document.body.append(viewport.firstChild);
+                }
+            }
+
+            viewport.remove();
+        }
+    }
+
+    function removeOwnedStyles() {
+        for (const style of getOwnedElements(STYLE_ID, STYLE_ROLE)) {
+            style.remove();
+        }
     }
 
     function ensureStyle() {
@@ -131,24 +203,26 @@
         ensureStyle();
         captureOriginalStyles();
 
-        let viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
-        let surface = getOwnedElement(SURFACE_ID, SURFACE_ROLE);
+        const existingPair = getOwnedWrapperPair();
 
-        if (viewport && surface) {
-            return surface;
+        if (existingPair) {
+            removeOwnedWrapperNodes(existingPair);
+            return existingPair.surface;
         }
 
-        viewport = document.createElement("div");
+        removeOwnedWrapperNodes();
+
+        const viewport = document.createElement("div");
         viewport.id = VIEWPORT_ID;
         markOwned(viewport, VIEWPORT_ROLE);
 
-        surface = document.createElement("div");
+        const surface = document.createElement("div");
         surface.id = SURFACE_ID;
         markOwned(surface, SURFACE_ROLE);
         surface.dataset.roterAngle = "0";
 
         const children = Array.from(document.body.childNodes).filter((node) => {
-            return node !== viewport;
+            return !isOwnedNode(node);
         });
 
         for (const child of children) {
@@ -162,35 +236,8 @@
     }
 
     function unwrapIfReset() {
-        const viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
-        const surface = getOwnedElement(SURFACE_ID, SURFACE_ROLE);
-        const style = getOwnedElement(STYLE_ID, STYLE_ROLE);
-
-        if (surface) {
-            const anchor = viewport || surface;
-
-            while (surface.firstChild) {
-                if (anchor.parentNode) {
-                    anchor.parentNode.insertBefore(surface.firstChild, anchor);
-                } else {
-                    document.body.append(surface.firstChild);
-                }
-            }
-        }
-
-        if (viewport) {
-            while (viewport.firstChild) {
-                document.body.insertBefore(viewport.firstChild, viewport);
-            }
-
-            viewport.remove();
-        }
-
-        if (surface?.isConnected) {
-            surface.remove();
-        }
-
-        style?.remove();
+        removeOwnedWrapperNodes();
+        removeOwnedStyles();
         document.documentElement.classList.remove(MANAGED_CLASS);
         document.body.classList.remove(MANAGED_CLASS);
         restoreOriginalStyles();
