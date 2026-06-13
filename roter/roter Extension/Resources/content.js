@@ -17,7 +17,6 @@
     }
 
     let currentAngle = 0;
-    let originalStyles = null;
 
     function normalizeAngle(angle) {
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
@@ -170,38 +169,8 @@
         document.documentElement.append(style);
     }
 
-    function captureOriginalStyles() {
-        if (originalStyles === null) {
-            originalStyles = {
-                body: document.body.getAttribute("style"),
-                html: document.documentElement.getAttribute("style")
-            };
-        }
-    }
-
-    function restoreOriginalStyles() {
-        if (originalStyles === null) {
-            return;
-        }
-
-        if (originalStyles.body === null) {
-            document.body.removeAttribute("style");
-        } else {
-            document.body.setAttribute("style", originalStyles.body);
-        }
-
-        if (originalStyles.html === null) {
-            document.documentElement.removeAttribute("style");
-        } else {
-            document.documentElement.setAttribute("style", originalStyles.html);
-        }
-
-        originalStyles = null;
-    }
-
     function ensureWrapper() {
         ensureStyle();
-        captureOriginalStyles();
 
         const existingPair = getOwnedWrapperPair();
 
@@ -240,7 +209,6 @@
         removeOwnedStyles();
         document.documentElement.classList.remove(MANAGED_CLASS);
         document.body.classList.remove(MANAGED_CLASS);
-        restoreOriginalStyles();
     }
 
     function applyAngle(angle) {

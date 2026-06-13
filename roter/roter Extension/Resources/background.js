@@ -136,7 +136,7 @@ async function rotateActiveTab() {
     }
 
     if (!permitted) {
-        return { actionable: true, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0 };
     }
 
     const origin = getOriginKey(tab.url);
@@ -178,7 +178,7 @@ async function resetActiveTab() {
     }
 
     if (!permitted) {
-        return { actionable: true, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0 };
     }
 
     const origin = getOriginKey(tab.url);
@@ -216,27 +216,70 @@ browser.runtime.onMessage.addListener((request) => {
     return undefined;
 });
 
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (!changeInfo.url) {
-        return;
-    }
-
+async function reapplyStoredRotation(tabId, tab, completedUrl) {
     if (!tabStates.has(tabId)) {
         return;
     }
 
     const storedState = getStoredState(tabId);
+    const url = completedUrl ?? tab?.url ?? storedState.url;
 
-    if (!isSameOrigin(storedState.url, changeInfo.url)) {
+    if (!canAttemptRotation(url) || !isSameOrigin(storedState.url, url)) {
         clearStoredState(tabId);
         return;
     }
 
-    setStoredState(tabId, {
-        angle: storedState.angle,
-        origin: getOriginKey(changeInfo.url),
-        url: changeInfo.url
-    });
+    if (storedState.angle === 0) {
+        return;
+    }
+
+    const permitted = await hasOriginPermission(url);
+
+    if (!permitted) {
+        clearStoredState(tabId);
+        return;
+    }
+
+    try {
+        await ensureContentController(tabId);
+        const contentState = await sendToTab(tabId, {
+            type: "roter:applyAngle",
+            angle: storedState.angle
+        });
+        const angle = getResponseAngle(contentState);
+
+        if (angle === null) {
+            clearStoredState(tabId);
+            return;
+        }
+
+        setStoredState(tabId, { angle, origin: getOriginKey(url), url });
+    } catch {
+        clearStoredState(tabId);
+    }
+}
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.url && tabStates.has(tabId)) {
+        const storedState = getStoredState(tabId);
+
+        if (!isSameOrigin(storedState.url, changeInfo.url)) {
+            clearStoredState(tabId);
+            return;
+        }
+
+        setStoredState(tabId, {
+            angle: storedState.angle,
+            origin: getOriginKey(changeInfo.url),
+            url: changeInfo.url
+        });
+    }
+
+    if (changeInfo.status !== "complete") {
+        return;
+    }
+
+    void reapplyStoredRotation(tabId, tab, changeInfo.url);
 });
 
 browser.tabs.onRemoved.addListener((tabId) => {
