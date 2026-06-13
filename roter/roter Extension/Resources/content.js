@@ -4,6 +4,11 @@
     const VIEWPORT_ID = "roter-viewport";
     const SURFACE_ID = "roter-surface";
     const MANAGED_CLASS = "roter-managed";
+    const OWNED_ATTRIBUTE = "data-roter-owned";
+    const ROLE_ATTRIBUTE = "data-roter-role";
+    const STYLE_ROLE = "style";
+    const VIEWPORT_ROLE = "viewport";
+    const SURFACE_ROLE = "surface";
     const SUPPORTED_ANGLES = [0, 90, 180, 270];
 
     if (window[CONTROLLER_KEY]) {
@@ -18,13 +23,27 @@
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
     }
 
+    function ownedSelector(id, role) {
+        return `[id="${id}"][${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${role}"]`;
+    }
+
+    function getOwnedElement(id, role) {
+        return document.querySelector(ownedSelector(id, role));
+    }
+
+    function markOwned(element, role) {
+        element.setAttribute(OWNED_ATTRIBUTE, "true");
+        element.setAttribute(ROLE_ATTRIBUTE, role);
+    }
+
     function ensureStyle() {
-        if (document.getElementById(STYLE_ID)) {
+        if (getOwnedElement(STYLE_ID, STYLE_ROLE)) {
             return;
         }
 
         const style = document.createElement("style");
         style.id = STYLE_ID;
+        markOwned(style, STYLE_ROLE);
         style.textContent = `
             html.${MANAGED_CLASS},
             body.${MANAGED_CLASS} {
@@ -34,7 +53,7 @@
                 overflow: hidden !important;
             }
 
-            #${VIEWPORT_ID} {
+            #${VIEWPORT_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${VIEWPORT_ROLE}"] {
                 position: fixed !important;
                 inset: 0 !important;
                 width: 100vw !important;
@@ -44,7 +63,7 @@
                 background: Canvas !important;
             }
 
-            #${SURFACE_ID} {
+            #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"] {
                 position: absolute !important;
                 top: 0 !important;
                 left: 0 !important;
@@ -52,25 +71,25 @@
                 transition: none !important;
             }
 
-            #${SURFACE_ID}[data-roter-angle="0"] {
+            #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="0"] {
                 width: 100vw !important;
                 min-height: 100vh !important;
                 transform: none !important;
             }
 
-            #${SURFACE_ID}[data-roter-angle="90"] {
+            #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="90"] {
                 width: 100vh !important;
                 min-height: 100vw !important;
                 transform: translateX(100vw) rotate(90deg) !important;
             }
 
-            #${SURFACE_ID}[data-roter-angle="180"] {
+            #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="180"] {
                 width: 100vw !important;
                 min-height: 100vh !important;
                 transform: translate(100vw, 100vh) rotate(180deg) !important;
             }
 
-            #${SURFACE_ID}[data-roter-angle="270"] {
+            #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="270"] {
                 width: 100vh !important;
                 min-height: 100vw !important;
                 transform: translateY(100vh) rotate(270deg) !important;
@@ -112,8 +131,8 @@
         ensureStyle();
         captureOriginalStyles();
 
-        let viewport = document.getElementById(VIEWPORT_ID);
-        let surface = document.getElementById(SURFACE_ID);
+        let viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
+        let surface = getOwnedElement(SURFACE_ID, SURFACE_ROLE);
 
         if (viewport && surface) {
             return surface;
@@ -121,9 +140,11 @@
 
         viewport = document.createElement("div");
         viewport.id = VIEWPORT_ID;
+        markOwned(viewport, VIEWPORT_ROLE);
 
         surface = document.createElement("div");
         surface.id = SURFACE_ID;
+        markOwned(surface, SURFACE_ROLE);
         surface.dataset.roterAngle = "0";
 
         const children = Array.from(document.body.childNodes).filter((node) => {
@@ -141,18 +162,35 @@
     }
 
     function unwrapIfReset() {
-        const viewport = document.getElementById(VIEWPORT_ID);
-        const surface = document.getElementById(SURFACE_ID);
+        const viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
+        const surface = getOwnedElement(SURFACE_ID, SURFACE_ROLE);
+        const style = getOwnedElement(STYLE_ID, STYLE_ROLE);
 
-        if (!viewport || !surface) {
-            return;
+        if (surface) {
+            const anchor = viewport || surface;
+
+            while (surface.firstChild) {
+                if (anchor.parentNode) {
+                    anchor.parentNode.insertBefore(surface.firstChild, anchor);
+                } else {
+                    document.body.append(surface.firstChild);
+                }
+            }
         }
 
-        while (surface.firstChild) {
-            document.body.insertBefore(surface.firstChild, viewport);
+        if (viewport) {
+            while (viewport.firstChild) {
+                document.body.insertBefore(viewport.firstChild, viewport);
+            }
+
+            viewport.remove();
         }
 
-        viewport.remove();
+        if (surface?.isConnected) {
+            surface.remove();
+        }
+
+        style?.remove();
         document.documentElement.classList.remove(MANAGED_CLASS);
         document.body.classList.remove(MANAGED_CLASS);
         restoreOriginalStyles();
