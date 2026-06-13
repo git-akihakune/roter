@@ -1,11 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="popup.css">
     <script type="module" src="popup.js"></script>
 </head>
 <body>
-    <strong>Hello World!</strong>
+    <main class="popup" aria-live="polite">
+        <p class="brand">roter</p>
+        <output id="angle" class="angle" aria-label="Current rotation angle">0°</output>
+        <div class="actions">
+            <button id="rotate" class="button primary" type="button">Rotate</button>
+            <button id="reset" class="button secondary" type="button">Reset</button>
+        </div>
+    </main>
 </body>
 </html>
