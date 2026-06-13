@@ -25,6 +25,10 @@ function clearStoredState(tabId) {
     tabStates.delete(tabId);
 }
 
+function hasTabId(tab) {
+    return typeof tab?.id === "number";
+}
+
 function getResponseAngle(contentState) {
     if (typeof contentState?.angle !== "number") {
         return null;
@@ -71,8 +75,16 @@ async function sendToTab(tabId, message) {
     return browser.tabs.sendMessage(tabId, message);
 }
 
+async function resolveSafely(action) {
+    try {
+        return await action();
+    } catch {
+        return { actionable: false, permitted: false, angle: 0 };
+    }
+}
+
 async function getTabStatus(tab) {
-    if (!tab?.id || !canAttemptRotation(tab.url)) {
+    if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
         return { actionable: false, permitted: false, angle: 0 };
     }
 
@@ -113,7 +125,7 @@ async function getTabStatus(tab) {
 async function rotateActiveTab() {
     const tab = await getActiveTab();
 
-    if (!tab?.id || !canAttemptRotation(tab.url)) {
+    if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
         return { actionable: false, permitted: false, angle: 0 };
     }
 
@@ -155,7 +167,7 @@ async function rotateActiveTab() {
 async function resetActiveTab() {
     const tab = await getActiveTab();
 
-    if (!tab?.id || !canAttemptRotation(tab.url)) {
+    if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
         return { actionable: false, permitted: false, angle: 0 };
     }
 
@@ -190,15 +202,15 @@ async function resetActiveTab() {
 
 browser.runtime.onMessage.addListener((request) => {
     if (request?.type === "roter:getStatus") {
-        return getActiveTab().then(getTabStatus);
+        return resolveSafely(async () => getTabStatus(await getActiveTab()));
     }
 
     if (request?.type === "roter:rotate") {
-        return rotateActiveTab();
+        return resolveSafely(rotateActiveTab);
     }
 
     if (request?.type === "roter:reset") {
-        return resetActiveTab();
+        return resolveSafely(resetActiveTab);
     }
 
     return undefined;
