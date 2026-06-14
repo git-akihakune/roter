@@ -134,6 +134,24 @@ test("the extension rotates, preserves same-origin rotation, and resets the curr
             matchScrollDirection: true
         });
 
+        const matchedScrollBeforeWheel = await page.locator("#roter-viewport").evaluate((viewport) => {
+            return {
+                scrollLeft: viewport.scrollLeft,
+                scrollTop: viewport.scrollTop
+            };
+        });
+        expect(matchedScrollBeforeWheel.scrollLeft).toBeGreaterThan(0);
+        await page.mouse.move(450, 300);
+        await page.mouse.wheel(0, 120);
+        const matchedScrollAfterWheel = await page.locator("#roter-viewport").evaluate((viewport) => {
+            return {
+                scrollLeft: viewport.scrollLeft,
+                scrollTop: viewport.scrollTop
+            };
+        });
+        expect(matchedScrollAfterWheel.scrollLeft).toBeLessThan(matchedScrollBeforeWheel.scrollLeft);
+        expect(matchedScrollAfterWheel.scrollTop).toBe(matchedScrollBeforeWheel.scrollTop);
+
         const scrollTopBeforeWheel = await page.locator("#roter-viewport").evaluate((viewport) => {
             return viewport.scrollTop;
         });

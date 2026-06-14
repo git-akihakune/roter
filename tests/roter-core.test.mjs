@@ -64,21 +64,21 @@ test("canAttemptRotation accepts only normal web pages", () => {
     assert.equal(canAttemptRotation(undefined), false);
 });
 
-test("mapWheelDeltaForAngle keeps wheel movement aligned to visual screen axes", () => {
+test("mapWheelDeltaForAngle rotates wheel movement with the page orientation", () => {
     assert.deepEqual(mapWheelDeltaForAngle(0, { deltaX: 3, deltaY: 7 }), {
         scrollLeftDelta: 3,
         scrollTopDelta: 7
     });
     assert.deepEqual(mapWheelDeltaForAngle(90, { deltaX: 3, deltaY: 7 }), {
-        scrollLeftDelta: 3,
-        scrollTopDelta: 7
+        scrollLeftDelta: -7,
+        scrollTopDelta: 3
     });
     assert.deepEqual(mapWheelDeltaForAngle(180, { deltaX: 3, deltaY: 7 }), {
-        scrollLeftDelta: 3,
-        scrollTopDelta: 7
+        scrollLeftDelta: -3,
+        scrollTopDelta: -7
     });
     assert.deepEqual(mapWheelDeltaForAngle(270, { deltaX: 3, deltaY: 7 }), {
-        scrollLeftDelta: 3,
-        scrollTopDelta: 7
+        scrollLeftDelta: 7,
+        scrollTopDelta: -3
     });
 });

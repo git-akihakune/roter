@@ -26,11 +26,20 @@
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
     }
 
-    function mapWheelDeltaForAngle(_angle, wheelDelta) {
-        return {
-            scrollLeftDelta: wheelDelta?.deltaX ?? 0,
-            scrollTopDelta: wheelDelta?.deltaY ?? 0
-        };
+    function mapWheelDeltaForAngle(angle, wheelDelta) {
+        const deltaX = wheelDelta?.deltaX ?? 0;
+        const deltaY = wheelDelta?.deltaY ?? 0;
+
+        switch (normalizeAngle(angle)) {
+        case 90:
+            return { scrollLeftDelta: -deltaY, scrollTopDelta: deltaX };
+        case 180:
+            return { scrollLeftDelta: -deltaX, scrollTopDelta: -deltaY };
+        case 270:
+            return { scrollLeftDelta: deltaY, scrollTopDelta: -deltaX };
+        default:
+            return { scrollLeftDelta: deltaX, scrollTopDelta: deltaY };
+        }
     }
 
     function ownedSelector(id, role) {
@@ -94,14 +103,8 @@
         }
 
         event.preventDefault();
-        const previousScrollLeft = viewport.scrollLeft;
-        const previousScrollTop = viewport.scrollTop;
         viewport.scrollLeft += scrollLeftDelta;
         viewport.scrollTop += scrollTopDelta;
-
-        if (event.deltaY !== 0 && viewport.scrollLeft === previousScrollLeft && viewport.scrollTop === previousScrollTop) {
-            viewport.scrollTop += event.deltaY;
-        }
     }
 
     function removeOwnedWrapperNodes(keptPair = null) {
@@ -209,19 +212,19 @@
             #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="90"] {
                 width: 100vh !important;
                 min-height: 100vw !important;
-                transform: translateX(100vw) rotate(90deg) !important;
+                transform: translateX(var(--roter-content-height, 100vw)) rotate(90deg) !important;
             }
 
             #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="180"] {
                 width: 100vw !important;
                 min-height: 100vh !important;
-                transform: translate(100vw, 100vh) rotate(180deg) !important;
+                transform: translate(var(--roter-content-width, 100vw), var(--roter-content-height, 100vh)) rotate(180deg) !important;
             }
 
             #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="270"] {
                 width: 100vh !important;
                 min-height: 100vw !important;
-                transform: translateY(100vh) rotate(270deg) !important;
+                transform: translateY(var(--roter-content-width, 100vh)) rotate(270deg) !important;
             }
         `;
         document.documentElement.append(style);
@@ -284,8 +287,38 @@
         const contentWidth = Math.max(surface.scrollWidth, window.innerWidth);
         const contentHeight = Math.max(surface.scrollHeight, window.innerHeight);
         const isSideways = angle === 90 || angle === 270;
+        surface.style.setProperty("--roter-content-width", `${contentWidth}px`);
+        surface.style.setProperty("--roter-content-height", `${contentHeight}px`);
         spacer.style.width = `${isSideways ? contentHeight : contentWidth}px`;
         spacer.style.height = `${isSideways ? contentWidth : contentHeight}px`;
+    }
+
+    function setInitialScrollForAngle(angle) {
+        const viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
+
+        if (!viewport) {
+            return;
+        }
+
+        const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+        const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+
+        if (angle === 90) {
+            viewport.scrollLeft = maxScrollLeft;
+            viewport.scrollTop = 0;
+            return;
+        }
+
+        if (angle === 180) {
+            viewport.scrollLeft = maxScrollLeft;
+            viewport.scrollTop = maxScrollTop;
+            return;
+        }
+
+        if (angle === 270) {
+            viewport.scrollLeft = 0;
+            viewport.scrollTop = maxScrollTop;
+        }
     }
 
     function unwrapIfReset() {
@@ -297,6 +330,7 @@
     }
 
     function applyAngle(angle, options = {}) {
+        const previousAngle = currentAngle;
         currentAngle = normalizeAngle(angle);
         matchScrollDirection = options.matchScrollDirection !== false;
 
@@ -314,6 +348,9 @@
         document.body.classList.add(MANAGED_CLASS);
         surface.dataset.roterAngle = String(currentAngle);
         updateScrollSpacer(surface, currentAngle);
+        if (previousAngle !== currentAngle) {
+            setInitialScrollForAngle(currentAngle);
+        }
 
         return { angle: currentAngle };
     }

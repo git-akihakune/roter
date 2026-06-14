@@ -49,9 +49,18 @@ export function canAttemptRotation(urlString) {
     return Boolean(getOriginKey(urlString));
 }
 
-export function mapWheelDeltaForAngle(_angle, wheelDelta) {
-    return {
-        scrollLeftDelta: wheelDelta?.deltaX ?? 0,
-        scrollTopDelta: wheelDelta?.deltaY ?? 0
-    };
+export function mapWheelDeltaForAngle(angle, wheelDelta) {
+    const deltaX = wheelDelta?.deltaX ?? 0;
+    const deltaY = wheelDelta?.deltaY ?? 0;
+
+    switch (normalizeAngle(angle)) {
+    case 90:
+        return { scrollLeftDelta: -deltaY, scrollTopDelta: deltaX };
+    case 180:
+        return { scrollLeftDelta: -deltaX, scrollTopDelta: -deltaY };
+    case 270:
+        return { scrollLeftDelta: deltaY, scrollTopDelta: -deltaX };
+    default:
+        return { scrollLeftDelta: deltaX, scrollTopDelta: deltaY };
+    }
 }
