@@ -7,6 +7,7 @@
     --button-foreground: #ffffff;
     --secondary-border: #c9c1b5;
     --disabled: #9a948d;
+    --indicator-background: #ebe5da;
 }
 
 * {
@@ -14,7 +15,7 @@
 }
 
 body {
-    width: 220px;
+    width: 248px;
     margin: 0;
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: var(--background);
@@ -36,12 +37,68 @@ body {
     letter-spacing: 0;
 }
 
+.angle-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 54px;
+    align-items: center;
+    gap: 10px;
+}
+
 .angle {
     display: block;
     min-height: 74px;
     font-size: 56px;
     font-weight: 760;
     line-height: 1.15;
+}
+
+.direction {
+    --rotation-angle: 0deg;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border: 1px solid var(--secondary-border);
+    border-radius: 8px;
+    background: var(--indicator-background);
+}
+
+.direction.is-updating .direction-page {
+    animation: direction-pop 180ms ease-out;
+}
+
+.direction-page {
+    position: relative;
+    width: 30px;
+    height: 38px;
+    border: 2px solid var(--foreground);
+    border-radius: 5px;
+    background: var(--background);
+    transform: rotate(var(--rotation-angle));
+    transition: transform 160ms ease-out;
+}
+
+.direction-arrow {
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    width: 2px;
+    height: 19px;
+    border-radius: 2px;
+    background: var(--button);
+    transform: translateX(-50%);
+}
+
+.direction-arrow::before {
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    width: 9px;
+    height: 9px;
+    border-top: 2px solid var(--button);
+    border-left: 2px solid var(--button);
+    content: "";
+    transform: translateX(-50%) rotate(45deg);
 }
 
 .actions {
@@ -74,6 +131,16 @@ body {
     color: var(--foreground);
 }
 
+@keyframes direction-pop {
+    0% {
+        transform: rotate(var(--rotation-angle)) scale(0.9);
+    }
+
+    100% {
+        transform: rotate(var(--rotation-angle)) scale(1);
+    }
+}
+
 @media (prefers-color-scheme: dark) {
     :root {
         --background: #171818;
@@ -83,5 +150,6 @@ body {
         --button-foreground: #071312;
         --secondary-border: #4d4b48;
         --disabled: #77716b;
+        --indicator-background: #252727;
     }
 }

@@ -7,6 +7,7 @@ import {
     getOriginKey,
     getOriginPermissionPattern,
     isSameOrigin,
+    mapWheelDeltaForAngle,
     normalizeAngle
 } from "../roter/roter Extension/Resources/roter-core.mjs";
 
@@ -61,4 +62,23 @@ test("canAttemptRotation accepts only normal web pages", () => {
     assert.equal(canAttemptRotation("about:blank"), false);
     assert.equal(canAttemptRotation("file:///tmp/page.html"), false);
     assert.equal(canAttemptRotation(undefined), false);
+});
+
+test("mapWheelDeltaForAngle keeps wheel movement aligned to visual screen axes", () => {
+    assert.deepEqual(mapWheelDeltaForAngle(0, { deltaX: 3, deltaY: 7 }), {
+        scrollLeftDelta: 3,
+        scrollTopDelta: 7
+    });
+    assert.deepEqual(mapWheelDeltaForAngle(90, { deltaX: 3, deltaY: 7 }), {
+        scrollLeftDelta: 3,
+        scrollTopDelta: 7
+    });
+    assert.deepEqual(mapWheelDeltaForAngle(180, { deltaX: 3, deltaY: 7 }), {
+        scrollLeftDelta: 3,
+        scrollTopDelta: 7
+    });
+    assert.deepEqual(mapWheelDeltaForAngle(270, { deltaX: 3, deltaY: 7 }), {
+        scrollLeftDelta: 3,
+        scrollTopDelta: 7
+    });
 });

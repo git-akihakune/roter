@@ -110,6 +110,19 @@ test("the extension rotates, preserves same-origin rotation, and resets the curr
         expect(rotateState).toMatchObject({ actionable: true, angle: 90 });
         await expect(page.locator("#roter-surface")).toHaveAttribute("data-roter-angle", "90");
 
+        const scrollTopBeforeWheel = await page.locator("#roter-viewport").evaluate((viewport) => {
+            return viewport.scrollTop;
+        });
+        await expect.poll(async () => {
+            return page.locator("#roter-viewport").evaluate((viewport) => {
+                return viewport.scrollHeight - viewport.clientHeight;
+            });
+        }).toBeGreaterThan(0);
+        await page.locator("#roter-viewport").evaluate((viewport) => {
+            viewport.scrollTop += 120;
+        });
+        await expect(page.locator("#roter-viewport")).toHaveJSProperty("scrollTop", scrollTopBeforeWheel + 120);
+
         await page.locator("a[href='/same-origin.html']").click();
         await expect(page.locator("#same-origin-marker")).toBeVisible();
         await expect(page.locator("#roter-surface")).toHaveAttribute("data-roter-angle", "90");

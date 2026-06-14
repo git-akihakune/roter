@@ -48,3 +48,10 @@ export function isSameOrigin(previousUrl, nextUrl) {
 export function canAttemptRotation(urlString) {
     return Boolean(getOriginKey(urlString));
 }
+
+export function mapWheelDeltaForAngle(_angle, wheelDelta) {
+    return {
+        scrollLeftDelta: wheelDelta?.deltaX ?? 0,
+        scrollTopDelta: wheelDelta?.deltaY ?? 0
+    };
+}

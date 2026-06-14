@@ -4,12 +4,14 @@
     const STYLE_ID = "roter-style";
     const VIEWPORT_ID = "roter-viewport";
     const SURFACE_ID = "roter-surface";
+    const SPACER_ID = "roter-scroll-spacer";
     const MANAGED_CLASS = "roter-managed";
     const OWNED_ATTRIBUTE = "data-roter-owned";
     const ROLE_ATTRIBUTE = "data-roter-role";
     const STYLE_ROLE = "style";
     const VIEWPORT_ROLE = "viewport";
     const SURFACE_ROLE = "surface";
+    const SPACER_ROLE = "spacer";
     const SUPPORTED_ANGLES = [0, 90, 180, 270];
 
     if (window[CONTROLLER_KEY]) {
@@ -21,6 +23,13 @@
 
     function normalizeAngle(angle) {
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
+    }
+
+    function mapWheelDeltaForAngle(_angle, wheelDelta) {
+        return {
+            scrollLeftDelta: wheelDelta?.deltaX ?? 0,
+            scrollTopDelta: wheelDelta?.deltaY ?? 0
+        };
     }
 
     function ownedSelector(id, role) {
@@ -38,6 +47,7 @@
     function getOwnedWrapperPair() {
         const viewports = getOwnedElements(VIEWPORT_ID, VIEWPORT_ROLE);
         const surfaces = getOwnedElements(SURFACE_ID, SURFACE_ROLE);
+        const spacers = getOwnedElements(SPACER_ID, SPACER_ROLE);
 
         for (const viewport of viewports) {
             const surface = surfaces.find((candidate) => {
@@ -45,7 +55,11 @@
             });
 
             if (surface) {
-                return { surface, viewport };
+                const spacer = spacers.find((candidate) => {
+                    return candidate.parentNode === viewport;
+                }) ?? null;
+
+                return { spacer, surface, viewport };
             }
         }
 
@@ -61,11 +75,47 @@
         element.setAttribute(ROLE_ATTRIBUTE, role);
     }
 
+    function handleWheel(event) {
+        if (currentAngle === 0) {
+            return;
+        }
+
+        const viewport = getOwnedElement(VIEWPORT_ID, VIEWPORT_ROLE);
+
+        if (!viewport) {
+            return;
+        }
+
+        const { scrollLeftDelta, scrollTopDelta } = mapWheelDeltaForAngle(currentAngle, event);
+
+        if (scrollLeftDelta === 0 && scrollTopDelta === 0) {
+            return;
+        }
+
+        event.preventDefault();
+        const previousScrollLeft = viewport.scrollLeft;
+        const previousScrollTop = viewport.scrollTop;
+        viewport.scrollLeft += scrollLeftDelta;
+        viewport.scrollTop += scrollTopDelta;
+
+        if (event.deltaY !== 0 && viewport.scrollLeft === previousScrollLeft && viewport.scrollTop === previousScrollTop) {
+            viewport.scrollTop += event.deltaY;
+        }
+    }
+
     function removeOwnedWrapperNodes(keptPair = null) {
         const keptSurface = keptPair?.surface ?? null;
         const keptViewport = keptPair?.viewport ?? null;
+        const keptSpacer = keptPair?.spacer ?? null;
         const surfaces = getOwnedElements(SURFACE_ID, SURFACE_ROLE);
         const viewports = getOwnedElements(VIEWPORT_ID, VIEWPORT_ROLE);
+        const spacers = getOwnedElements(SPACER_ID, SPACER_ROLE);
+
+        for (const spacer of spacers) {
+            if (spacer !== keptSpacer) {
+                spacer.remove();
+            }
+        }
 
         for (const surface of surfaces) {
             if (surface === keptSurface) {
@@ -143,6 +193,12 @@
                 transition: none !important;
             }
 
+            #${SPACER_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SPACER_ROLE}"] {
+                display: block !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+            }
+
             #${SURFACE_ID}[${OWNED_ATTRIBUTE}="true"][${ROLE_ATTRIBUTE}="${SURFACE_ROLE}"][data-roter-angle="0"] {
                 width: 100vw !important;
                 min-height: 100vh !important;
@@ -177,6 +233,14 @@
 
         if (existingPair) {
             removeOwnedWrapperNodes(existingPair);
+            if (!existingPair.spacer) {
+                const spacer = document.createElement("div");
+                spacer.id = SPACER_ID;
+                markOwned(spacer, SPACER_ROLE);
+                existingPair.viewport.insertBefore(spacer, existingPair.surface);
+                existingPair.spacer = spacer;
+            }
+
             return existingPair.surface;
         }
 
@@ -191,6 +255,10 @@
         markOwned(surface, SURFACE_ROLE);
         surface.dataset.roterAngle = "0";
 
+        const spacer = document.createElement("div");
+        spacer.id = SPACER_ID;
+        markOwned(spacer, SPACER_ROLE);
+
         const children = Array.from(document.body.childNodes).filter((node) => {
             return !isOwnedNode(node);
         });
@@ -199,13 +267,28 @@
             surface.append(child);
         }
 
-        viewport.append(surface);
+        viewport.append(spacer, surface);
         document.body.append(viewport);
 
         return surface;
     }
 
+    function updateScrollSpacer(surface, angle) {
+        const spacer = getOwnedElement(SPACER_ID, SPACER_ROLE);
+
+        if (!spacer) {
+            return;
+        }
+
+        const contentWidth = Math.max(surface.scrollWidth, window.innerWidth);
+        const contentHeight = Math.max(surface.scrollHeight, window.innerHeight);
+        const isSideways = angle === 90 || angle === 270;
+        spacer.style.width = `${isSideways ? contentHeight : contentWidth}px`;
+        spacer.style.height = `${isSideways ? contentWidth : contentHeight}px`;
+    }
+
     function unwrapIfReset() {
+        document.removeEventListener("wheel", handleWheel, { capture: true });
         removeOwnedWrapperNodes();
         removeOwnedStyles();
         document.documentElement.classList.remove(MANAGED_CLASS);
@@ -221,9 +304,14 @@
         }
 
         const surface = ensureWrapper();
+        document.addEventListener("wheel", handleWheel, {
+            capture: true,
+            passive: false
+        });
         document.documentElement.classList.add(MANAGED_CLASS);
         document.body.classList.add(MANAGED_CLASS);
         surface.dataset.roterAngle = String(currentAngle);
+        updateScrollSpacer(surface, currentAngle);
 
         return { angle: currentAngle };
     }

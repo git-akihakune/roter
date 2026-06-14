@@ -1,7 +1,9 @@
 const angleOutput = document.getElementById("angle");
+const directionIndicator = document.getElementById("direction");
 const rotateButton = document.getElementById("rotate");
 const resetButton = document.getElementById("reset");
 const extensionApi = globalThis.browser ?? globalThis.chrome;
+let renderedAngle = 0;
 
 function setEnabled(enabled) {
     rotateButton.disabled = !enabled;
@@ -12,6 +14,15 @@ function renderState(state) {
     const angle = state?.angle ?? 0;
     angleOutput.value = `${angle}°`;
     angleOutput.textContent = `${angle}°`;
+    directionIndicator.style.setProperty("--rotation-angle", `${angle}deg`);
+
+    if (angle !== renderedAngle) {
+        directionIndicator.classList.remove("is-updating");
+        directionIndicator.offsetWidth;
+        directionIndicator.classList.add("is-updating");
+        renderedAngle = angle;
+    }
+
     setEnabled(Boolean(state?.actionable));
 }
 

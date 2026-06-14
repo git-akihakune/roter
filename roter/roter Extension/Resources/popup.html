@@ -9,7 +9,14 @@
 <body>
     <main class="popup" aria-live="polite">
         <p class="brand">roter</p>
-        <output id="angle" class="angle" aria-label="Current rotation angle">0°</output>
+        <div class="angle-row">
+            <output id="angle" class="angle" aria-label="Current rotation angle">0°</output>
+            <div id="direction" class="direction" aria-label="Current rotation direction" role="img">
+                <div class="direction-page">
+                    <span class="direction-arrow"></span>
+                </div>
+            </div>
+        </div>
         <div class="actions">
             <button id="rotate" class="button primary" type="button">Rotate</button>
             <button id="reset" class="button secondary" type="button">Reset</button>
