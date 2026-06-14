@@ -8,6 +8,7 @@ import {
 } from "./roter-core.mjs";
 
 const extensionApi = globalThis.browser ?? globalThis.chrome;
+const MATCH_SCROLL_DIRECTION_KEY = "matchScrollDirection";
 const tabStates = new Map();
 
 function getStoredState(tabId) {
@@ -76,6 +77,22 @@ async function sendToTab(tabId, message) {
     return extensionApi.tabs.sendMessage(tabId, message);
 }
 
+async function getMatchScrollDirection() {
+    const values = await extensionApi.storage.local.get({
+        [MATCH_SCROLL_DIRECTION_KEY]: true
+    });
+
+    return values[MATCH_SCROLL_DIRECTION_KEY] !== false;
+}
+
+async function setMatchScrollDirection(matchScrollDirection) {
+    const enabled = matchScrollDirection !== false;
+    await extensionApi.storage.local.set({
+        [MATCH_SCROLL_DIRECTION_KEY]: enabled
+    });
+    return enabled;
+}
+
 async function resolveSafely(action) {
     try {
         return await action();
@@ -101,14 +118,16 @@ function addRuntimeMessageListener(handler) {
 }
 
 async function getTabStatus(tab) {
+    const matchScrollDirection = await getMatchScrollDirection();
+
     if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
-        return { actionable: false, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
     const permitted = await hasOriginPermission(tab.url);
 
     if (!permitted) {
-        return { actionable: true, permitted: false, angle: 0 };
+        return { actionable: true, permitted: false, angle: 0, matchScrollDirection };
     }
 
     const storedState = getStoredState(tab.id);
@@ -119,12 +138,13 @@ async function getTabStatus(tab) {
         await ensureContentController(tab.id);
         const contentState = await sendToTab(tab.id, {
             type: "roter:applyAngle",
-            angle
+            angle,
+            matchScrollDirection
         });
         const responseAngle = getResponseAngle(contentState);
 
         if (responseAngle === null) {
-            return { actionable: false, permitted: true, angle: 0 };
+            return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
         }
 
         setStoredState(tab.id, { angle: responseAngle, origin, url: tab.url });
@@ -132,18 +152,20 @@ async function getTabStatus(tab) {
         return {
             actionable: true,
             permitted: true,
-            angle: responseAngle
+            angle: responseAngle,
+            matchScrollDirection
         };
     } catch {
-        return { actionable: false, permitted: true, angle: 0 };
+        return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
     }
 }
 
 async function rotateActiveTab() {
     const tab = await getActiveTab();
+    const matchScrollDirection = await getMatchScrollDirection();
 
     if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
-        return { actionable: false, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
     let permitted = await hasOriginPermission(tab.url);
@@ -153,7 +175,7 @@ async function rotateActiveTab() {
     }
 
     if (!permitted) {
-        return { actionable: false, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
     const origin = getOriginKey(tab.url);
@@ -165,27 +187,29 @@ async function rotateActiveTab() {
         await ensureContentController(tab.id);
         const contentState = await sendToTab(tab.id, {
             type: "roter:applyAngle",
-            angle: nextAngle
+            angle: nextAngle,
+            matchScrollDirection
         });
         const angle = getResponseAngle(contentState);
 
         if (angle === null) {
-            return { actionable: false, permitted: true, angle: 0 };
+            return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
         }
 
         setStoredState(tab.id, { angle, origin, url: tab.url });
 
-        return { actionable: true, permitted: true, angle };
+        return { actionable: true, permitted: true, angle, matchScrollDirection };
     } catch {
-        return { actionable: false, permitted: true, angle: 0 };
+        return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
     }
 }
 
 async function resetActiveTab() {
     const tab = await getActiveTab();
+    const matchScrollDirection = await getMatchScrollDirection();
 
     if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
-        return { actionable: false, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
     let permitted = await hasOriginPermission(tab.url);
@@ -195,7 +219,7 @@ async function resetActiveTab() {
     }
 
     if (!permitted) {
-        return { actionable: false, permitted: false, angle: 0 };
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
     const origin = getOriginKey(tab.url);
@@ -206,14 +230,52 @@ async function resetActiveTab() {
         const angle = getResponseAngle(contentState);
 
         if (angle === null) {
-            return { actionable: false, permitted: true, angle: 0 };
+            return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
         }
 
         setStoredState(tab.id, { angle, origin, url: tab.url });
 
-        return { actionable: true, permitted: true, angle };
+        return { actionable: true, permitted: true, angle, matchScrollDirection };
     } catch {
-        return { actionable: false, permitted: true, angle: 0 };
+        return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
+    }
+}
+
+async function setMatchScrollDirectionForActiveTab(enabled) {
+    const matchScrollDirection = await setMatchScrollDirection(enabled);
+    const tab = await getActiveTab();
+
+    if (!hasTabId(tab) || !canAttemptRotation(tab.url)) {
+        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
+    }
+
+    const permitted = await hasOriginPermission(tab.url);
+    const storedState = getStoredState(tab.id);
+    const origin = getOriginKey(tab.url);
+    const angle = storedState.origin === origin ? storedState.angle : 0;
+
+    if (!permitted) {
+        return { actionable: true, permitted: false, angle: 0, matchScrollDirection };
+    }
+
+    try {
+        await ensureContentController(tab.id);
+        const contentState = await sendToTab(tab.id, {
+            type: "roter:applyAngle",
+            angle,
+            matchScrollDirection
+        });
+        const responseAngle = getResponseAngle(contentState);
+
+        if (responseAngle === null) {
+            return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
+        }
+
+        setStoredState(tab.id, { angle: responseAngle, origin, url: tab.url });
+
+        return { actionable: true, permitted: true, angle: responseAngle, matchScrollDirection };
+    } catch {
+        return { actionable: false, permitted: true, angle: 0, matchScrollDirection };
     }
 }
 
@@ -228,6 +290,10 @@ addRuntimeMessageListener((request) => {
 
     if (request?.type === "roter:reset") {
         return resolveSafely(resetActiveTab);
+    }
+
+    if (request?.type === "roter:setMatchScrollDirection") {
+        return resolveSafely(() => setMatchScrollDirectionForActiveTab(request.enabled));
     }
 
     return undefined;
@@ -258,10 +324,12 @@ async function reapplyStoredRotation(tabId, tab, completedUrl) {
     }
 
     try {
+        const matchScrollDirection = await getMatchScrollDirection();
         await ensureContentController(tabId);
         const contentState = await sendToTab(tabId, {
             type: "roter:applyAngle",
-            angle: storedState.angle
+            angle: storedState.angle,
+            matchScrollDirection
         });
         const angle = getResponseAngle(contentState);
 

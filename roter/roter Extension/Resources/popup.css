@@ -131,6 +131,24 @@ body {
     color: var(--foreground);
 }
 
+.option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    color: var(--foreground);
+    font-size: 13px;
+    font-weight: 650;
+    text-align: left;
+}
+
+.option input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--button);
+}
+
 @keyframes direction-pop {
     0% {
         transform: rotate(var(--rotation-angle)) scale(0.9);

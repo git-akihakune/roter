@@ -20,6 +20,7 @@
     }
 
     let currentAngle = 0;
+    let matchScrollDirection = true;
 
     function normalizeAngle(angle) {
         return SUPPORTED_ANGLES.includes(angle) ? angle : 0;
@@ -76,7 +77,7 @@
     }
 
     function handleWheel(event) {
-        if (currentAngle === 0) {
+        if (currentAngle === 0 || !matchScrollDirection) {
             return;
         }
 
@@ -295,8 +296,9 @@
         document.body.classList.remove(MANAGED_CLASS);
     }
 
-    function applyAngle(angle) {
+    function applyAngle(angle, options = {}) {
         currentAngle = normalizeAngle(angle);
+        matchScrollDirection = options.matchScrollDirection !== false;
 
         if (currentAngle === 0) {
             unwrapIfReset();
@@ -353,7 +355,9 @@
         }
 
         if (request?.type === "roter:applyAngle") {
-            return Promise.resolve(window[CONTROLLER_KEY].applyAngle(request.angle));
+            return Promise.resolve(window[CONTROLLER_KEY].applyAngle(request.angle, {
+                matchScrollDirection: request.matchScrollDirection
+            }));
         }
 
         if (request?.type === "roter:reset") {

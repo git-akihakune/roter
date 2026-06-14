@@ -110,6 +110,30 @@ test("the extension rotates, preserves same-origin rotation, and resets the curr
         expect(rotateState).toMatchObject({ actionable: true, angle: 90 });
         await expect(page.locator("#roter-surface")).toHaveAttribute("data-roter-angle", "90");
 
+        const disabledScrollState = await harness.evaluate(() => {
+            return chrome.runtime.sendMessage({
+                type: "roter:setMatchScrollDirection",
+                enabled: false
+            });
+        });
+        expect(disabledScrollState).toMatchObject({
+            actionable: true,
+            angle: 90,
+            matchScrollDirection: false
+        });
+
+        const enabledScrollState = await harness.evaluate(() => {
+            return chrome.runtime.sendMessage({
+                type: "roter:setMatchScrollDirection",
+                enabled: true
+            });
+        });
+        expect(enabledScrollState).toMatchObject({
+            actionable: true,
+            angle: 90,
+            matchScrollDirection: true
+        });
+
         const scrollTopBeforeWheel = await page.locator("#roter-viewport").evaluate((viewport) => {
             return viewport.scrollTop;
         });
