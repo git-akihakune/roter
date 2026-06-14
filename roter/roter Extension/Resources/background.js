@@ -7,6 +7,7 @@ import {
     normalizeAngle
 } from "./roter-core.mjs";
 
+const extensionApi = globalThis.browser ?? globalThis.chrome;
 const tabStates = new Map();
 
 function getStoredState(tabId) {
@@ -40,7 +41,7 @@ function getResponseAngle(contentState) {
 }
 
 async function getActiveTab() {
-    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
+    const tabs = await extensionApi.tabs.query({ active: true, currentWindow: true });
     return tabs[0] ?? null;
 }
 
@@ -51,7 +52,7 @@ async function hasOriginPermission(url) {
         return false;
     }
 
-    return browser.permissions.contains({ origins: [originPattern] });
+    return extensionApi.permissions.contains({ origins: [originPattern] });
 }
 
 async function requestOriginPermission(url) {
@@ -61,18 +62,18 @@ async function requestOriginPermission(url) {
         return false;
     }
 
-    return browser.permissions.request({ origins: [originPattern] });
+    return extensionApi.permissions.request({ origins: [originPattern] });
 }
 
 async function ensureContentController(tabId) {
-    await browser.scripting.executeScript({
+    await extensionApi.scripting.executeScript({
         target: { tabId },
         files: [ "content.js" ]
     });
 }
 
 async function sendToTab(tabId, message) {
-    return browser.tabs.sendMessage(tabId, message);
+    return extensionApi.tabs.sendMessage(tabId, message);
 }
 
 async function resolveSafely(action) {
@@ -81,6 +82,22 @@ async function resolveSafely(action) {
     } catch {
         return { actionable: false, permitted: false, angle: 0 };
     }
+}
+
+function addRuntimeMessageListener(handler) {
+    extensionApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
+        const response = handler(request, sender);
+
+        if (response === undefined) {
+            return false;
+        }
+
+        Promise.resolve(response).then(sendResponse, () => {
+            sendResponse({ actionable: false, permitted: false, angle: 0 });
+        });
+
+        return true;
+    });
 }
 
 async function getTabStatus(tab) {
@@ -200,7 +217,7 @@ async function resetActiveTab() {
     }
 }
 
-browser.runtime.onMessage.addListener((request) => {
+addRuntimeMessageListener((request) => {
     if (request?.type === "roter:getStatus") {
         return resolveSafely(async () => getTabStatus(await getActiveTab()));
     }
@@ -259,7 +276,7 @@ async function reapplyStoredRotation(tabId, tab, completedUrl) {
     }
 }
 
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+extensionApi.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (changeInfo.url && tabStates.has(tabId)) {
         const storedState = getStoredState(tabId);
 
@@ -282,6 +299,6 @@ browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     void reapplyStoredRotation(tabId, tab, changeInfo.url);
 });
 
-browser.tabs.onRemoved.addListener((tabId) => {
+extensionApi.tabs.onRemoved.addListener((tabId) => {
     clearStoredState(tabId);
 });

@@ -1,0 +1,15 @@
+{
+    "name": "roter",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test:unit": "node tests/roter-core.test.mjs",
+        "test:e2e": "playwright test tests/e2e/rotation-extension.spec.mjs --reporter=line --timeout=15000",
+        "test:e2e:docker": "docker build -f tests/e2e/Dockerfile -t roter-e2e . && docker run --rm roter-e2e",
+        "test": "npm run test:unit && npm run test:e2e"
+    },
+    "devDependencies": {
+        "@playwright/test": "1.49.1"
+    }
+}

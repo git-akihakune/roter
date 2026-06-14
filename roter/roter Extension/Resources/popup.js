@@ -1,6 +1,7 @@
 const angleOutput = document.getElementById("angle");
 const rotateButton = document.getElementById("rotate");
 const resetButton = document.getElementById("reset");
+const extensionApi = globalThis.browser ?? globalThis.chrome;
 
 function setEnabled(enabled) {
     rotateButton.disabled = !enabled;
@@ -18,7 +19,7 @@ async function sendCommand(type) {
     setEnabled(false);
 
     try {
-        const state = await browser.runtime.sendMessage({ type });
+        const state = await extensionApi.runtime.sendMessage({ type });
         renderState(state);
     } catch {
         renderState({ actionable: false, angle: 0 });

@@ -1,4 +1,5 @@
 (() => {
+    const extensionApi = globalThis.browser ?? globalThis.chrome;
     const CONTROLLER_KEY = "__roterContentController";
     const STYLE_ID = "roter-style";
     const VIEWPORT_ID = "roter-viewport";
@@ -237,6 +238,20 @@
         }
     }
 
+    function addRuntimeMessageListener(handler) {
+        extensionApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            const response = handler(request, sender);
+
+            if (response === undefined) {
+                return false;
+            }
+
+            Promise.resolve(response).then(sendResponse);
+
+            return true;
+        });
+    }
+
     window[CONTROLLER_KEY] = {
         applyAngle,
         ensureReady,
@@ -244,7 +259,7 @@
         reset
     };
 
-    browser.runtime.onMessage.addListener((request) => {
+    addRuntimeMessageListener((request) => {
         if (request?.type === "roter:getState") {
             return Promise.resolve(window[CONTROLLER_KEY].getState());
         }
