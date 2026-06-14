@@ -25,13 +25,17 @@ export function getOriginKey(urlString) {
 }
 
 export function getOriginPermissionPattern(urlString) {
-    const origin = getOriginKey(urlString);
+    try {
+        const url = new URL(urlString);
 
-    if (!origin) {
+        if (url.protocol !== "http:" && url.protocol !== "https:") {
+            return null;
+        }
+
+        return `${url.protocol}//${url.hostname}/*`;
+    } catch {
         return null;
     }
-
-    return `${origin}/*`;
 }
 
 export function isSameOrigin(previousUrl, nextUrl) {

@@ -41,9 +41,10 @@ test("getOriginKey rejects non-web and malformed URLs", () => {
     assert.equal(getOriginKey("not a url"), null);
 });
 
-test("getOriginPermissionPattern creates a current-origin host pattern", () => {
+test("getOriginPermissionPattern creates a valid host permission pattern", () => {
     assert.equal(getOriginPermissionPattern("https://example.com/a"), "https://example.com/*");
-    assert.equal(getOriginPermissionPattern("http://localhost:3000/path"), "http://localhost:3000/*");
+    assert.equal(getOriginPermissionPattern("http://localhost:3000/path"), "http://localhost/*");
+    assert.equal(getOriginPermissionPattern("https://example.com:8443/path"), "https://example.com/*");
     assert.equal(getOriginPermissionPattern("about:blank"), null);
 });
 
