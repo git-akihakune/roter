@@ -79,7 +79,7 @@ async function sendToTab(tabId, message) {
 
 async function getMatchScrollDirection() {
     const values = await extensionApi.storage.local.get({
-        [MATCH_SCROLL_DIRECTION_KEY]: true
+        [MATCH_SCROLL_DIRECTION_KEY]: false
     });
 
     return values[MATCH_SCROLL_DIRECTION_KEY] !== false;

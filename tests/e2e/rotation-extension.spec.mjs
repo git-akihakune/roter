@@ -107,7 +107,11 @@ test("the extension rotates, preserves same-origin rotation, and resets the curr
             return chrome.runtime.sendMessage({ type: "roter:rotate" });
         });
 
-        expect(rotateState).toMatchObject({ actionable: true, angle: 90 });
+        expect(rotateState).toMatchObject({
+            actionable: true,
+            angle: 90,
+            matchScrollDirection: false
+        });
         await expect(page.locator("#roter-surface")).toHaveAttribute("data-roter-angle", "90");
 
         const disabledScrollState = await harness.evaluate(() => {
