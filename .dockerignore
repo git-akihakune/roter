@@ -1,0 +1,9 @@
+.git
+.superpowers
+docs/superpowers
+node_modules
+roter/Build
+roter/DerivedData
+*.xcuserstate
+*.xcodeproj/xcuserdata
+*.xcworkspace/xcuserdata

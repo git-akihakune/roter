@@ -1,11 +1,30 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="popup.css">
     <script type="module" src="popup.js"></script>
 </head>
 <body>
-    <strong>Hello World!</strong>
+    <main class="popup" aria-live="polite">
+        <p class="brand">roter</p>
+        <div class="angle-row">
+            <output id="angle" class="angle" aria-label="Current rotation angle">0°</output>
+            <div id="direction" class="direction" aria-label="Current rotation direction" role="img">
+                <div class="direction-page">
+                    <span class="direction-arrow"></span>
+                </div>
+            </div>
+        </div>
+        <div class="actions">
+            <button id="rotate" class="button primary" type="button">Rotate</button>
+            <button id="reset" class="button secondary" type="button">Reset</button>
+        </div>
+        <label class="option">
+            <input id="match-scroll-direction" type="checkbox">
+            <span>Match scroll direction</span>
+        </label>
+    </main>
 </body>
 </html>
