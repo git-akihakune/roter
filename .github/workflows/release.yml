@@ -1,0 +1,57 @@
+name: Build and Release Extensions
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build release artifacts
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Build browser extension artifacts
+        run: npm run build:webextensions
+
+      - name: Build Safari container app
+        run: xcodebuild -project roter/roter.xcodeproj -scheme roter -configuration Release build CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload browser artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: roter-browser-artifacts
+          path: |
+            dist/releases/roter-safari.zip
+            dist/releases/roter-chromium.zip
+            dist/releases/roter-firefox.zip
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/releases/roter-safari.zip
+            dist/releases/roter-chromium.zip
+            dist/releases/roter-firefox.zip

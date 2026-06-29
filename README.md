@@ -2,18 +2,18 @@
 
 # Roter
 
-**Rotate your current Safari tab like a tablet.**
+**Rotate your current browser tab like a tablet.**
 
 <img src="docs/screenshots/app-icon.png" alt="Roter app icon" width="128">
 
-![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Safari-0f766e)
-![Extension](https://img.shields.io/badge/type-Safari%20Web%20Extension-2563eb)
+![Platform](https://img.shields.io/badge/platform-Safari%20%7C%20Chromium%20%7C%20Firefox-0f766e)
+![Extension](https://img.shields.io/badge/type-WebExtension-2563eb)
 ![Tests](https://img.shields.io/badge/tests-Node%20%7C%20Playwright%20%7C%20Docker-111827)
 
 
 </div>
 
-Roter is a macOS Safari Web Extension for reading portrait-first pages inside a landscape browser window. It rotates the current page in place, keeps the state scoped to the current tab and site, and asks for website access only when you use it on that site.
+Roter is a WebExtension for reading portrait-first pages inside a landscape browser window. It rotates the current page in place, keeps the state scoped to the current tab and site, and asks for website access only when you use it on that site.
 
 
 
@@ -38,8 +38,8 @@ Basically, since I don't want to pay the Apple tax, you have to build this yours
 
 ### Requirements
 
-- macOS with Safari
-- Xcode
+- macOS with Safari and Xcode for the Safari container app
+- Node.js and npm for shared WebExtension builds
 
 ### Build and Run
 
@@ -60,6 +60,25 @@ Basically, since I don't want to pay the Apple tax, you have to build this yours
 xcodebuild -project roter/roter.xcodeproj -scheme roter -configuration Debug build
 ```
 
+### Browser Extension Artifacts
+
+The shared WebExtension resources can be packaged for Safari, Chromium, and
+Firefox:
+
+```sh
+npm run build:webextensions
+```
+
+This creates unpacked extension directories in `dist/webextensions/` and release
+zips in `dist/releases/`:
+
+- `roter-safari.zip`
+- `roter-chromium.zip`
+- `roter-firefox.zip`
+
+The GitHub Actions release workflow builds all three zips and attaches them to
+GitHub releases for tags that start with `v`.
+
 ### Tests
 
 You need:
@@ -72,7 +91,7 @@ npm run test:e2e:docker
 ```
 
 `npm run test:unit` runs the JavaScript unit tests. `npm run test:e2e:docker`
-builds a temporary Chromium-compatible copy of the extension and verifies the
+builds the Chromium artifact, loads a temporary copy of it, and verifies the
 rotation flow in Playwright.
 
 
@@ -80,8 +99,8 @@ rotation flow in Playwright.
 
 The extension declares `<all_urls>` as an optional host permission so it can work
 on arbitrary websites, but it does not request broad access up front. When you
-use Roter on a site, it requests access for that current site only. Safari then
-remembers the granted site permission.
+use Roter on a site, it requests access for that current site only. The browser
+then remembers the granted site permission.
 
 Unsupported pages such as `about:blank`, browser UI pages, and non-web URLs are
 left alone.

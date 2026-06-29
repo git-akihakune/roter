@@ -1,13 +1,16 @@
 import { test, expect, chromium } from "@playwright/test";
+import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
-const extensionResources = path.join(repoRoot, "roter/roter Extension/Resources");
+const execFileAsync = promisify(execFile);
+const chromiumBuild = path.join(repoRoot, "dist/webextensions/chromium");
 const fixtureRoot = path.join(__dirname, "fixtures/basic-site");
 
 function localUrl(port, pathname = "/") {
@@ -45,15 +48,15 @@ async function startFixtureServer() {
 }
 
 async function makeChromiumExtensionFixture(originPattern) {
+    await execFileAsync("npm", ["run", "build:webextensions"], {
+        cwd: repoRoot
+    });
+
     const extensionDir = await fs.mkdtemp(path.join(os.tmpdir(), "roter-extension-"));
-    await fs.cp(extensionResources, extensionDir, { recursive: true });
+    await fs.cp(chromiumBuild, extensionDir, { recursive: true });
 
     const manifestPath = path.join(extensionDir, "manifest.json");
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-    manifest.background = {
-        service_worker: "background.js",
-        type: "module"
-    };
     manifest.host_permissions = [originPattern];
     manifest.optional_host_permissions = [];
 
