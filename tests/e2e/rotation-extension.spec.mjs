@@ -47,7 +47,7 @@ async function startFixtureServer() {
     };
 }
 
-async function makeChromiumExtensionFixture(originPattern) {
+async function makeChromiumExtensionFixture(originPattern = null) {
     await execFileAsync("npm", ["run", "build:webextensions"], {
         cwd: repoRoot
     });
@@ -57,8 +57,10 @@ async function makeChromiumExtensionFixture(originPattern) {
 
     const manifestPath = path.join(extensionDir, "manifest.json");
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-    manifest.host_permissions = [originPattern];
-    manifest.optional_host_permissions = [];
+    if (originPattern) {
+        manifest.host_permissions = [originPattern];
+        manifest.optional_host_permissions = [];
+    }
 
     await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 4)}\n`);
     await fs.writeFile(
@@ -182,6 +184,51 @@ test("the extension rotates, preserves same-origin rotation, and resets the curr
 
         expect(resetState).toMatchObject({ actionable: true, angle: 0 });
         await expect(page.locator("#roter-surface")).toHaveCount(0);
+    } finally {
+        await context?.close();
+        await server.close();
+        await fs.rm(extensionDir, { force: true, recursive: true });
+        await fs.rm(userDataDir, { force: true, recursive: true });
+    }
+});
+
+test("the extension reports the current origin permission pattern before access is granted", async () => {
+    const server = await startFixtureServer();
+    const extensionDir = await makeChromiumExtensionFixture();
+    const userDataDir = await fs.mkdtemp(path.join(os.tmpdir(), "roter-profile-"));
+    let context;
+
+    try {
+        context = await chromium.launchPersistentContext(userDataDir, {
+            headless: false,
+            viewport: { width: 900, height: 600 },
+            args: [
+                `--disable-extensions-except=${extensionDir}`,
+                `--load-extension=${extensionDir}`
+            ]
+        });
+
+        let [serviceWorker] = context.serviceWorkers();
+        serviceWorker ??= await context.waitForEvent("serviceworker", { timeout: 5000 });
+        const extensionId = new URL(serviceWorker.url()).host;
+
+        const page = await context.newPage();
+        await page.goto(localUrl(server.port));
+        await expect(page.locator("#marker")).toBeVisible();
+
+        const harness = await openExtensionHarness(context, extensionId);
+        await page.bringToFront();
+
+        const status = await harness.evaluate(() => {
+            return chrome.runtime.sendMessage({ type: "roter:getStatus" });
+        });
+
+        expect(status).toMatchObject({
+            actionable: true,
+            permitted: false,
+            angle: 0,
+            originPermissionPattern: "http://127.0.0.1/*"
+        });
     } finally {
         await context?.close();
         await server.close();

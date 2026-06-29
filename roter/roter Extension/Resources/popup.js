@@ -1,3 +1,5 @@
+import { needsOriginPermission, requestOriginPermissionForState } from "./popup-permissions.mjs";
+
 const angleOutput = document.getElementById("angle");
 const directionIndicator = document.getElementById("direction");
 const matchScrollDirectionInput = document.getElementById("match-scroll-direction");
@@ -5,6 +7,7 @@ const rotateButton = document.getElementById("rotate");
 const resetButton = document.getElementById("reset");
 const extensionApi = globalThis.browser ?? globalThis.chrome;
 let renderedAngle = 0;
+let renderedState = { actionable: false, permitted: false, angle: 0 };
 
 function setEnabled(enabled) {
     rotateButton.disabled = !enabled;
@@ -12,6 +15,7 @@ function setEnabled(enabled) {
 }
 
 function renderState(state) {
+    renderedState = state ?? { actionable: false, permitted: false, angle: 0 };
     const angle = state?.angle ?? 0;
     const matchScrollDirection = state?.matchScrollDirection !== false;
     angleOutput.value = `${angle}°`;
@@ -40,12 +44,25 @@ async function sendCommand(type, payload = {}) {
     }
 }
 
+async function sendCommandWithPermission(type) {
+    if (needsOriginPermission(renderedState)) {
+        const granted = await requestOriginPermissionForState(extensionApi, renderedState);
+
+        if (!granted) {
+            renderState(renderedState);
+            return;
+        }
+    }
+
+    await sendCommand(type);
+}
+
 rotateButton.addEventListener("click", () => {
-    sendCommand("roter:rotate");
+    sendCommandWithPermission("roter:rotate");
 });
 
 resetButton.addEventListener("click", () => {
-    sendCommand("roter:reset");
+    sendCommandWithPermission("roter:reset");
 });
 
 matchScrollDirectionInput.addEventListener("change", () => {
@@ -54,4 +71,5 @@ matchScrollDirectionInput.addEventListener("change", () => {
     });
 });
 
+setEnabled(false);
 sendCommand("roter:getStatus");

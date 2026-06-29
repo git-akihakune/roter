@@ -27,6 +27,7 @@ test("build:webextensions creates Safari, Chromium, and Firefox artifacts", asyn
         scripts: ["background.js"],
         type: "module"
     });
+    assert.equal(safariManifest.action.default_icon, "images/toolbar-icon.svg");
     assert.equal(safariManifest.host_permissions, undefined);
     assert.deepEqual(safariManifest.optional_host_permissions, ["<all_urls>"]);
 
@@ -35,6 +36,10 @@ test("build:webextensions creates Safari, Chromium, and Firefox artifacts", asyn
         service_worker: "background.js",
         type: "module"
     });
+    assert.deepEqual(chromiumManifest.action.default_icon, {
+        "48": "images/icon-48.png",
+        "96": "images/icon-96.png"
+    });
     assert.deepEqual(chromiumManifest.host_permissions, undefined);
     assert.deepEqual(chromiumManifest.optional_host_permissions, ["<all_urls>"]);
 
@@ -42,6 +47,10 @@ test("build:webextensions creates Safari, Chromium, and Firefox artifacts", asyn
     assert.deepEqual(firefoxManifest.background, {
         scripts: ["background.js"],
         type: "module"
+    });
+    assert.deepEqual(firefoxManifest.action.default_icon, {
+        "48": "images/icon-48.png",
+        "96": "images/icon-96.png"
     });
     assert.equal(firefoxManifest.host_permissions, undefined);
     assert.deepEqual(firefoxManifest.optional_host_permissions, ["<all_urls>"]);

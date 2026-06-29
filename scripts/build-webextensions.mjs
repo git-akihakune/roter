@@ -117,6 +117,10 @@ function manifestForBrowser(baseManifest, browser) {
             service_worker: "background.js",
             type: "module"
         };
+        manifest.action.default_icon = {
+            48: "images/icon-48.png",
+            96: "images/icon-96.png"
+        };
         return manifest;
     }
 
@@ -126,6 +130,10 @@ function manifestForBrowser(baseManifest, browser) {
     };
 
     if (browser === "firefox") {
+        manifest.action.default_icon = {
+            48: "images/icon-48.png",
+            96: "images/icon-96.png"
+        };
         manifest.browser_specific_settings = {
             gecko: {
                 id: "{8262c48d-51c6-48ec-92de-0db6dc521a8f}",

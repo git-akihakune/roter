@@ -56,16 +56,6 @@ async function hasOriginPermission(url) {
     return extensionApi.permissions.contains({ origins: [originPattern] });
 }
 
-async function requestOriginPermission(url) {
-    const originPattern = getOriginPermissionPattern(url);
-
-    if (!originPattern) {
-        return false;
-    }
-
-    return extensionApi.permissions.request({ origins: [originPattern] });
-}
-
 async function ensureContentController(tabId) {
     await extensionApi.scripting.executeScript({
         target: { tabId },
@@ -101,6 +91,16 @@ async function resolveSafely(action) {
     }
 }
 
+function getUnpermittedState(url, matchScrollDirection) {
+    return {
+        actionable: true,
+        permitted: false,
+        angle: 0,
+        matchScrollDirection,
+        originPermissionPattern: getOriginPermissionPattern(url)
+    };
+}
+
 function addRuntimeMessageListener(handler) {
     extensionApi.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const response = handler(request, sender);
@@ -127,7 +127,7 @@ async function getTabStatus(tab) {
     const permitted = await hasOriginPermission(tab.url);
 
     if (!permitted) {
-        return { actionable: true, permitted: false, angle: 0, matchScrollDirection };
+        return getUnpermittedState(tab.url, matchScrollDirection);
     }
 
     const storedState = getStoredState(tab.id);
@@ -168,14 +168,10 @@ async function rotateActiveTab() {
         return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
-    let permitted = await hasOriginPermission(tab.url);
+    const permitted = await hasOriginPermission(tab.url);
 
     if (!permitted) {
-        permitted = await requestOriginPermission(tab.url);
-    }
-
-    if (!permitted) {
-        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
+        return getUnpermittedState(tab.url, matchScrollDirection);
     }
 
     const origin = getOriginKey(tab.url);
@@ -212,14 +208,10 @@ async function resetActiveTab() {
         return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
     }
 
-    let permitted = await hasOriginPermission(tab.url);
+    const permitted = await hasOriginPermission(tab.url);
 
     if (!permitted) {
-        permitted = await requestOriginPermission(tab.url);
-    }
-
-    if (!permitted) {
-        return { actionable: false, permitted: false, angle: 0, matchScrollDirection };
+        return getUnpermittedState(tab.url, matchScrollDirection);
     }
 
     const origin = getOriginKey(tab.url);
@@ -255,7 +247,7 @@ async function setMatchScrollDirectionForActiveTab(enabled) {
     const angle = storedState.origin === origin ? storedState.angle : 0;
 
     if (!permitted) {
-        return { actionable: true, permitted: false, angle: 0, matchScrollDirection };
+        return getUnpermittedState(tab.url, matchScrollDirection);
     }
 
     try {
