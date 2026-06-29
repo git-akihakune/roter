@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "build:webextensions": "node scripts/build-webextensions.mjs",
         "test:unit": "node --test tests/*.test.mjs",
         "test:e2e": "playwright test tests/e2e/rotation-extension.spec.mjs --reporter=line --timeout=15000",
         "test:e2e:docker": "docker build -f tests/e2e/Dockerfile -t roter-e2e . && docker run --rm roter-e2e",
