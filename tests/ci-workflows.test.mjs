@@ -12,6 +12,8 @@ test("release workflow builds and publishes all browser artifacts", async () => 
     );
 
     assert.match(workflow, /npm run build:webextensions/);
+    assert.match(workflow, /release:\s*\n\s+types:\s*\[\s*published\s*\]/);
+    assert.match(workflow, /workflow_dispatch:/);
 
     for (const browser of ["safari", "chromium", "firefox"]) {
         assert.match(workflow, new RegExp(`dist/releases/roter-${browser}\\.zip`));
